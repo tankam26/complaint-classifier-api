@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complaint Classifier</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a35;
+      --accent: #c8f135;
+      --accent2: #7c6af7;
+      --text: #f0f0ee;
+      --muted: #7a7a8a;
+      --danger: #ff5e5e;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 80px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(200,241,53,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200,241,53,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    header {
+      margin-bottom: 48px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 4px 10px;
+      border-radius: 2px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(50px, 6vw, 52px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+
+    .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+    .status-dot.offline { background: var(--danger); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .input-section {
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    .input-label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 20px;
+      border-radius: 8px;
+      resize: vertical;
+      min-height: 140px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(200,241,53,0.08);
+    }
+
+    textarea::placeholder { color: var(--muted); }
+
+    .input-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      gap: 12px;
+    }
+
+    .char-count {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+
+    .examples {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .example-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 5px 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .example-btn:hover {
+      border-color: var(--accent2);
+      color: var(--text);
+    }
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      padding: 14px 32px;
+      background: var(--accent);
+      color: #0d0d0f;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      margin-top: 16px;
+      width: 100%;
+    }
+
+    .btn:hover { background: #d9ff4a; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn.loading::after {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #0d0d0f;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+
+    .result-section {
+      margin-top: 32px;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .result-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .result-category {
+      font-family: var(--font-head);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .result-meta {
+      text-align: right;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .result-meta strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+
+    .confidence-section {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .confidence-label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .confidence-bar-wrap {
+      background: var(--surface2);
+      border-radius: 2px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .confidence-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 0%;
+    }
+
+    .confidence-value {
+      font-size: 13px;
+      color: var(--accent);
+      margin-top: 8px;
+    }
+
+    .scores-section {
+      padding: 20px 24px;
+    }
+
+    .scores-label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .score-name {
+      font-size: 12px;
+      color: var(--muted);
+      width: 140px;
+      flex-shrink: 0;
+    }
+
+    .score-bar-wrap {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 2px;
+      height: 4px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 0%;
+    }
+
+    .score-bar-fill.top { background: var(--accent); }
+    .score-bar-fill.other { background: var(--accent2); opacity: 0.5; }
+
+    .score-pct {
+      font-size: 12px;
+      color: var(--muted);
+      width: 40px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .error-card {
+      background: rgba(255,94,94,0.08);
+      border: 1px solid rgba(255,94,94,0.3);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--danger);
+      margin-top: 16px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 40px 0;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    footer {
+      margin-top: 48px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <header>
+      <div class="tag">ML · NLP · DistilBERT</div>
+      <h1>Complaint<br/><span>Classifier</span></h1>
+      <p class="subtitle">Fine-tuned on 62k financial complaints across 7 categories.<br/>Paste any complaint text below to classify it.</p>
+      <div class="status-bar">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Checking API...</span>
+      </div>
+    </header>
+
+    <div class="input-section">
+      <label class="input-label" for="complaintText">Complaint text</label>
+      <textarea
+        id="complaintText"
+        placeholder="e.g. I was charged twice for my mortgage payment and the bank refused to refund me despite multiple attempts to contact them..."
+      ></textarea>
+
+      <div class="input-footer">
+        <div class="examples">
+          <button class="example-btn" onclick="fillExample('mortgage')">mortgage</button>
+          <button class="example-btn" onclick="fillExample('credit_card')">credit card</button>
+          <button class="example-btn" onclick="fillExample('debt')">debt</button>
+          <button class="example-btn" onclick="fillExample('student')">student loan</button>
+        </div>
+        <span class="char-count" id="charCount">0 chars</span>
+      </div>
+
+      <button class="btn" id="classifyBtn" onclick="classify()">
+        Classify complaint
+      </button>
+    </div>
+
+    <div id="errorBox" style="display:none"></div>
+    <div id="resultSection" style="display:none" class="result-section"></div>
+
+    <div class="divider"></div>
+    <footer>Running against local FastAPI · http://127.0.0.1:8000</footer>
+
+  </div>
+
+  <script>
+    const API = 'http://127.0.0.1:8000';
+
+    const examples = {
+      mortgage:    "I was charged twice for my mortgage payment and the bank refused to refund me despite multiple attempts to contact them over the past three weeks.",
+      credit_card: "My credit card was charged for a subscription service I never signed up for. I disputed the charge but the company keeps denying my request and says I authorized it.",
+      debt:        "A debt collection agency keeps calling me five times a day about a debt that is not mine. I have told them repeatedly to stop but they continue to harass me.",
+      student:     "My student loan servicer lost my payment and reported me as delinquent to the credit bureaus even though I have proof of payment from my bank."
+    };
+
+    document.getElementById('complaintText').addEventListener('input', function() {
+      document.getElementById('charCount').textContent = this.value.length + ' chars';
+    });
+
+    function fillExample(key) {
+      const ta = document.getElementById('complaintText');
+      ta.value = examples[key];
+      document.getElementById('charCount').textContent = ta.value.length + ' chars';
+      ta.focus();
+    }
+
+    async function checkHealth() {
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+      try {
+        const res = await fetch(`${API}/health`);
+        if (res.ok) {
+          dot.className = 'status-dot online';
+          txt.textContent = 'API online';
+        } else {
+          throw new Error();
+        }
+      } catch {
+        dot.className = 'status-dot offline';
+        txt.textContent = 'API offline — make sure uvicorn is running';
+      }
+    }
+
+    checkHealth();
+
+    async function classify() {
+      const text = document.getElementById('complaintText').value.trim();
+      const btn = document.getElementById('classifyBtn');
+      const errorBox = document.getElementById('errorBox');
+      const resultSection = document.getElementById('resultSection');
+
+      errorBox.style.display = 'none';
+      resultSection.style.display = 'none';
+
+      if (!text) {
+        showError('Please enter some complaint text first.');
+        return;
+      }
+      if (text.length < 20) {
+        showError('Text is too short — please enter at least 20 characters.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = 'Classifying';
+
+      try {
+        const res = await fetch(`${API}/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'API error');
+        }
+
+        const data = await res.json();
+        renderResult(data);
+
+      } catch (e) {
+        if (e.message === 'Failed to fetch') {
+          showError('Could not reach the API. Make sure uvicorn is running: uvicorn app.main:app --reload');
+        } else {
+          showError(e.message);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = 'Classify complaint';
+      }
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.innerHTML = `<div class="error-card">⚠ ${msg}</div>`;
+      box.style.display = 'block';
+    }
+
+    function renderResult(data) {
+      const section = document.getElementById('resultSection');
+      const scores = data.all_scores;
+      const topCat = data.category;
+
+      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
+      const scoreRows = sorted.map(([name, val]) => {
+        const pct = Math.round(val * 100);
+        const isTop = name === topCat;
+        return `
+          <div class="score-row">
+            <span class="score-name">${name.replace(/_/g, ' ')}</span>
+            <div class="score-bar-wrap">
+              <div class="score-bar-fill ${isTop ? 'top' : 'other'}" data-width="${pct}%" style="width:0%"></div>
+            </div>
+            <span class="score-pct">${pct}%</span>
+          </div>`;
+      }).join('');
+
+      section.innerHTML = `
+        <div class="result-card">
+          <div class="result-header">
+            <div>
+              <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Predicted category</div>
+              <div class="result-category">${data.category.replace(/_/g, ' ')}</div>
+            </div>
+            <div class="result-meta">
+              <div><strong>${Math.round(data.confidence * 100)}%</strong> confidence</div>
+              <div><strong>${data.processing_ms}ms</strong> latency</div>
+            </div>
+          </div>
+
+          <div class="confidence-section">
+            <div class="confidence-label">Top confidence</div>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar-fill" id="confBar" style="width:0%"></div>
+            </div>
+            <div class="confidence-value">${Math.round(data.confidence * 100)}%</div>
+          </div>
+
+          <div class="scores-section">
+            <div class="scores-label">All class scores</div>
+            ${scoreRows}
+          </div>
+        </div>`;
+
+      section.style.display = 'block';
+
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          document.getElementById('confBar').style.width = Math.round(data.confidence * 100) + '%';
+          document.querySelectorAll('.score-bar-fill[data-width]').forEach(el => {
+            el.style.width = el.dataset.width;
+          });
+        }, 50);
+      });
+    }
+
+    document.getElementById('complaintText').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.ctrlKey) classify();
+    });
+  </script>
+</body>
+</html>
